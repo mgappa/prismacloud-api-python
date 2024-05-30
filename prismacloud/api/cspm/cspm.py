@@ -78,7 +78,7 @@ class PrismaCloudAPIMixin():
         # Endpoints that return large numbers of results use a 'nextPageToken' (and a 'totalRows') key.
         # Pagination appears to be specific to "List Alerts V2 - POST" and the limit has a maximum of 10000.
         more = True
-        results = []
+        # results = []
         while more is True:
             if int(time.time() - self.token_timer) > self.token_limit:
                 self.extend_login()
@@ -108,11 +108,15 @@ class PrismaCloudAPIMixin():
                         break # retry loop
             if api_response.ok:
                 if not api_response.content:
-                    return None
+                    return
                 if api_response.headers.get('Content-Type') == 'application/x-gzip':
-                    return api_response.content
+                    yield api_response.content
+                    return
+                    # return api_response.content
                 if api_response.headers.get('Content-Type') == 'text/csv':
-                    return api_response.content.decode('utf-8')
+                    yield api_response.content.decode('utf-8')
+                    return
+                    # return api_response.content.decode('utf-8')
                 try:
                     result = json.loads(api_response.content)
                     #if result is None:
@@ -123,10 +127,13 @@ class PrismaCloudAPIMixin():
                 except ValueError:
                     self.logger.error('JSON raised ValueError, API: (%s) with query params: (%s) and body params: (%s) parsing response: (%s)' % (url, query_params, body_params, api_response.content))
                     if force:
-                        return results # or continue
+                        # TODO is it necessary to return value ?
+                        # return results # or continue
+                        return
                     self.error_and_exit(api_response.status_code, 'JSON raised ValueError, API: (%s) with query params: (%s) and body params: (%s) parsing response: (%s)' % (url, query_params, body_params, api_response.content))
                 if paginated:
-                    results.extend(result['items'])
+                    # results.extend(result['items'])
+                    yield result['items']
                     if 'nextPageToken' in result and result['nextPageToken']:
                         if self.debug:
                             print('Retrieving Next Page of Results')
@@ -135,13 +142,18 @@ class PrismaCloudAPIMixin():
                     else:
                         more = False
                 else:
-                    return result
+                    yield result
+                    # return result
             else:
                 self.logger.error('API: (%s) responded with a status of: (%s), with query: (%s) and body params: (%s)' % (url, api_response.status_code, query_params, body_params))
                 if force:
-                    return results
+                    return
+                    # TODO is it necessary to return value ?
+                    # return results
                 self.error_and_exit(api_response.status_code, 'API: (%s) with query params: (%s) and body params: (%s) responded with an error and this response:\n%s' % (url, query_params, body_params, api_response.text))
-        return results
+        # TODO is it necessary to return value ?
+        # return results
+        return
 
     # Exit handler (Error).
 
